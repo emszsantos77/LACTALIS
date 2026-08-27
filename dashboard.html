@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Dashboard Executivo — Lactalis & JBS Frios</title>
+<!-- Biblioteca SheetJS para Exportação XLSX -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --panel: #151d30;
+    --card: #1e293b;
+    --border: #334155;
+    --accent: #f8fafc;
+    --muted: #94a3b8;
+    --primary: #3b82f6;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--accent); font-size: 13px; -webkit-tap-highlight-color: transparent; }
+  
+  .app { display: flex; min-height: 100vh; flex-direction: row; }
+  
+  /* SIDEBAR */
+  .sidebar { width: 280px; background: var(--panel); border-right: 1px solid var(--border); padding: 20px; position: sticky; top: 0; height: 100vh; flex-shrink: 0; }
+  .brand-header { display: flex; gap: 12px; align-items: center; justify-content: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+  .brand-header img { height: 38px; object-fit: contain; }
+  
+  .section { margin-top: 16px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  select, input[type="search"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--accent); outline: none; font-size: 13px; }
+  
+  /* MAIN CONTENT */
+  .main { flex: 1; padding: 24px; overflow-y: auto; width: 100%; }
+  .header-title { font-size: 18px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  
+  /* CARDS SUPERIORES */
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .cat-card { background: var(--panel); border: 1px solid var(--border); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; }
+  .cat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .cat-val { font-size: 18px; font-weight: 800; margin: 6px 0; color: var(--accent); }
+  .cat-sub { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .gap-tag { font-size: 11px; font-weight: 700; color: #fca5a5; background: rgba(239, 68, 68, 0.2); padding: 4px 8px; border-radius: 6px; margin-top: 8px; text-align: center; }
+  .daily-tag { font-size: 11px; font-weight: 700; color: var(--warning); margin-top: 6px; text-align: center; }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+  .progress-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--primary), #60a5fa); }
+
+  /* SUPERVISORES */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; gap: 12px; align-items: center; cursor: pointer; transition: all 0.2s; }
+  .card:hover { transform: translateY(-3px); border-color: var(--primary); }
+  .avatar { width: 48px; height: 48px; border-radius: 10px; background: var(--border); overflow: hidden; flex-shrink: 0; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .meta h4 { margin: 0; font-size: 14px; font-weight: 700; }
+  .meta p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+
+  /* DOSSIÊ EXECUTIVO */
+  .feedback-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-top: 28px; }
+  .feedback-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 14px; }
+  .feedback-box { background: var(--card); border: 1px solid var(--border); padding: 16px; border-radius: 10px; }
+
+  /* MODAL CENTRALIZADO */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); padding: 12px; }
+  .modal-backdrop.open { display: flex; }
+  .modal-panel { width: 1000px; max-width: 100%; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; max-height: 90vh; overflow-y: auto; }
+  
+  /* TABELA EXCEL */
+  .excel-table { width: 100%; border-collapse: collapse; margin-top: 12px; table-layout: auto; }
+  .excel-table th, .excel-table td { padding: 10px 12px; text-align: left; border: 1px solid var(--border); font-size: 12px; }
+  .excel-table th { background: var(--card); color: var(--muted); text-transform: uppercase; font-size: 11px; cursor: pointer; user-select: none; }
+  .excel-table tr:hover { background: rgba(59, 130, 246, 0.12); cursor: pointer; }
+
+  /* BOTÕES DE AÇÃO */
+  .btn-close { background: var(--card); border: 1px solid var(--border); color: var(--accent); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .btn-reset { width: 100%; padding: 12px; background: var(--card); border: 1px solid var(--border); color: var(--accent); border-radius: 8px; cursor: pointer; margin-top: 12px; font-weight: 600; }
+  .btn-pdf { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .btn-xlsx { background: var(--success); color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  .btn-zero { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #fca5a5; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+  .info-bar { background: var(--card); border: 1px solid var(--border); padding: 12px; border-radius: 10px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+  /* IMPRESSÃO (PDF EM PAISAGEM SEM CORTES) */
+  @media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    body { background: #ffffff !important; color: #000000 !important; font-size: 10pt; }
+    .sidebar, .btn-close, .btn-pdf, .btn-xlsx, .btn-zero, .modal-header-actions, .feedback-panel, .header-title, .grid, .cat-grid { display: none !important; }
+    .modal-backdrop { position: static !important; background: transparent !important; backdrop-filter: none !important; padding: 0 !important; display: block !important; }
+    .modal-panel { width: 100% !important; max-width: 100% !important; background: #ffffff !important; color: #000000 !important; border: none !important; padding: 0 !important; max-height: none !important; overflow: visible !important; }
+    .excel-table { width: 100% !important; table-layout: fixed !important; border: 1px solid #000000 !important; }
+    .excel-table th, .excel-table td { border: 1px solid #666666 !important; color: #000000 !important; padding: 6px 8px !important; font-size: 9pt !important; word-wrap: break-word !important; white-space: normal !important; }
+    .excel-table th { background-color: #f0f0f0 !important; }
+    .info-bar { background: #f8f9fa !important; border: 1px solid #ccc !important; color: #000000 !important; }
+    .info-bar strong { color: #000000 !important; }
+  }
+
+  /* REGRAS RESPONSIVAS CELULAR (MOBILE) */
+  @media (max-width: 768px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid var(--border); padding: 16px; }
+    .main { padding: 16px; }
+    .cat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-panel { padding: 14px; border-radius: 12px; }
+    .modal-header-actions { flex-direction: column; align-items: stretch !important; gap: 8px !important; }
+    .modal-header-actions select, .modal-header-actions button { width: 100% !important; }
+    .info-bar { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand-header">
+      <img src="logo-lactalis.png" alt="Lactalis" onerror="this.style.display='none'" />
+      <img src="logo-jbs.png" alt="JBS Frios" onerror="this.style.display='none'" />
+    </div>
+
+    <div class="section">
+      <label>Mês de Acompanhamento</label>
+      <select id="filter-month">
+        <option value="ALL">Todo o Trimestre (Jul - Set)</option>
+        <option value="julho">Julho</option>
+        <option value="agosto">Agosto</option>
+        <option value="setembro">Setembro</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <label>Buscar Vendedor / Cliente</label>
+      <input id="search" type="search" placeholder="Digite nome, CPF, código..." />
+    </div>
+
+    <div class="section">
+      <label>Filtrar Supervisor</label>
+      <select id="filter-sup"><option value="ALL">Todos os Supervisores</option></select>
+    </div>
+
+    <button id="reset" class="btn-reset">Limpar Filtros</button>
+  </aside>
+
+  <main class="main">
+    <div class="header-title">
+      <span id="title-cards-sup">Metas, Realizado & GAP Globais</span>
+      <span style="font-size:12px; color:var(--muted);" id="workdays-info"></span>
+    </div>
+
+    <div class="cat-grid" id="cats-grid"></div>
+
+    <div class="header-title" style="margin-top: 24px;">
+      <span>Equipes e Supervisores</span>
+    </div>
+
+    <div class="grid" id="supervisors-grid"></div>
+
+    <!-- DOSSIÊ EXECUTIVO AMPLIADO -->
+    <div class="feedback-panel">
+      <h3 style="margin:0 0 4px 0;">Dossiê & Análise de Performance Executiva</h3>
+      <p class="muted" style="margin:0 0 14px 0;">Ritmo Diário individual exigido por vendedor para zerar o GAP em cada categoria específica.</p>
+      
+      <div class="feedback-grid" id="feedback-grid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- PAINEL CENTRALIZADO DO SUPERVISOR -->
+<div id="sup-modal-back" class="modal-backdrop">
+  <div class="modal-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="avatar" style="width:56px; height:56px; border-radius:12px;"><img id="panel-sup-img" src="" onerror="this.src='placeholder_supervisor.png'" /></div>
+        <div>
+          <h2 id="panel-sup-name" style="margin:0;">Supervisor</h2>
+          <div id="panel-sup-sub" class="muted" style="margin-top:2px;"></div>
+        </div>
+      </div>
+      <button class="btn-close" id="close-sup-panel">Fechar</button>
+    </div>
+
+    <h4 style="margin: 16px 0 8px 0; color:var(--muted); font-size:11px; text-transform:uppercase;">Detalhamento das Metas da Equipe por Categoria</h4>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px;" id="panel-sup-targets-grid"></div>
+
+    <div style="margin: 22px 0 10px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h4 style="margin:0;">Performance Individual da Equipe</h4>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;" class="modal-header-actions">
+        <select id="sup-month-select" style="width:auto; padding:6px 10px;">
+          <option value="ALL">Todo o Trimestre</option>
+          <option value="julho">Julho</option>
+          <option value="agosto">Agosto</option>
+          <option value="setembro">Setembro</option>
+        </select>
+        
+        <select id="sup-sort-select" style="width:auto; padding:6px 10px;">
+          <option value="TOTAL">Volume Total (Decrescente)</option>
+          <option value="ALFABETICA">Nome Vendedor (A-Z)</option>
+          <option value="IOGURTES">Iogurtes</option>
+          <option value="QUEIJOS">Queijos</option>
+          <option value="SPREADS">Spreads</option>
+          <option value="NUTRIÇÃO ESPORTIVA">Nutrição Esportiva</option>
+          <option value="DN">DN</option>
+          <option value="CM">CM</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="excel-table">
+        <thead>
+          <tr>
+            <th onclick="changeSort('ALFABETICA')">Vendedor</th>
+            <th onclick="changeSort('IOGURTES')">Iogurtes (KG)</th>
+            <th onclick="changeSort('QUEIJOS')">Queijos (KG)</th>
+            <th onclick="changeSort('SPREADS')">Spreads (KG)</th>
+            <th onclick="changeSort('NUTRIÇÃO ESPORTIVA')">Nutrição (KG)</th>
+            <th onclick="changeSort('DN')">DN</th>
+            <th onclick="changeSort('CM')">CM</th>
+            <th onclick="changeSort('TOTAL')" style="text-align:right;">Volume Total (KG)</th>
+          </tr>
+        </thead>
+        <tbody id="panel-excel-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE CLIENTES DO VENDEDOR -->
+<div id="cli-modal-back" class="modal-backdrop" style="z-index: 120;">
+  <div class="modal-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <h3 id="cli-modal-title" style="margin:0;">Clientes do Vendedor</h3>
+        <span class="muted" id="cli-modal-sub"></span>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;" class="modal-header-actions">
+        <select id="cli-month-select" style="width:auto; padding:6px 10px;">
+          <option value="ALL">Todos os Meses</option>
+          <option value="julho">Julho</option>
+          <option value="agosto">Agosto</option>
+          <option value="setembro">Setembro</option>
+        </select>
+
+        <select id="cli-cat-select" style="width:auto; padding:6px 10px;">
+          <option value="ALL">Todas as Categorias</option>
+          <option value="IOGURTES">Iogurtes</option>
+          <option value="QUEIJOS">Queijos</option>
+          <option value="SPREADS">Spreads</option>
+          <option value="NUTRIÇÃO ESPORTIVA">Nutrição Esportiva</option>
+          <option value="DN">DN</option>
+          <option value="CM">CM</option>
+        </select>
+
+        <!-- NOVO SELETOR DE MODO DE ORDENAÇÃO DA MENSAGEM DO USUÁRIO -->
+        <select id="cli-sort-type" style="width:auto; padding:6px 10px;">
+          <option value="CIDADE">Agrupar por Cidade → Maior Volume</option>
+          <option value="VOLUME">Ranking Maior Volume → Cidade</option>
+        </select>
+
+        <button class="btn-xlsx" id="btn-export-xlsx">Baixar XLSX</button>
+        <button class="btn-zero" id="btn-export-zero">XLSX Zerados</button>
+        <button class="btn-pdf" id="btn-export-pdf">Imprimir PDF</button>
+        <button class="btn-close" id="close-cli-modal">Fechar</button>
+      </div>
+    </div>
+
+    <!-- CARDS INFORMATIVOS COM CONTADOR DE ZERADOS -->
+    <div class="info-bar">
+      <div>
+        <span style="color:var(--muted);">Total Carteira: </span><strong id="stat-cli-total" style="color:var(--accent);">0</strong>
+        <span style="margin: 0 10px; color:var(--border);">|</span>
+        <span style="color:var(--success);">Positivados: </span><strong id="stat-cli-active" style="color:var(--success);">0</strong>
+        <span style="margin: 0 10px; color:var(--border);">|</span>
+        <span style="color:#fca5a5;">Clientes Zerados: </span><strong id="stat-cli-zero" style="color:#ef4444; font-size:14px;">0</strong>
+      </div>
+      <div style="font-size:11px; color:var(--muted);">
+        Agrupamento: <strong>Cliente Único no Período</strong> | Cidade & Volume
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="excel-table" style="margin-top:10px;" id="table-cli-print">
+        <thead>
+          <tr>
+            <th style="width: 10%;">PARCEIRO</th>
+            <th style="width: 20%;">CPF/CNPJ</th>
+            <th style="width: 38%;">RAZÃO SOCIAL</th>
+            <th style="width: 16%;">CIDADE</th>
+            <th style="width: 8%;">MÊS</th>
+            <th id="th-cli-val-title" style="text-align:right; width: 8%;">TOTAL (KG)</th>
+          </tr>
+        </thead>
+        <tbody id="cli-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmtKG = new Intl.NumberFormat('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtNum = new Intl.NumberFormat('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0});
+
+let DATA = null;
+let FILTERS = { month: 'ALL', supervisor: 'ALL', q: '' };
+let CURRENT_SUPERVISOR = null;
+let CURRENT_VENDOR = null;
+let CURRENT_SORT_KEY = 'TOTAL';
+let CURRENT_PROCESSED_CLIENTS = [];
+
+function getWorkdaysInfo(monthFilter) {
+  const today = new Date();
+  const year = 2026;
+  let totalWorkdays = 0;
+  let remainingWorkdays = 0;
+
+  let startMonth = 6;
+  let endMonth = 8;
+
+  if (monthFilter === 'julho') { startMonth = 6; endMonth = 6; }
+  else if (monthFilter === 'agosto') { startMonth = 7; endMonth = 7; }
+  else if (monthFilter === 'setembro') { startMonth = 8; endMonth = 8; }
+
+  for (let m = startMonth; m <= endMonth; m++) {
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, m, d);
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        totalWorkdays++;
+        if (date >= today) remainingWorkdays++;
+      }
+    }
+  }
+  return { totalWorkdays, remainingWorkdays: Math.max(1, remainingWorkdays || (monthFilter === 'ALL' ? 24 : 10)) };
+}
+
+function resolveVendorImage(member) {
+  if (member.image && member.image !== 'placeholder_vendedor.png') {
+    return member.image;
+  }
+  const cod = member.cod_vendedor || member.cod;
+  return cod ? `Imagens_Vendedores/${cod}.png` : 'placeholder_vendedor.png';
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('./output.json', { cache: "no-store" });
+    DATA = await res.json();
+    initFilters();
+    render();
+  } catch(e) { console.error(e); }
+}
+
+function initFilters() {
+  const selSup = document.getElementById('filter-sup');
+  selSup.innerHTML = '<option value="ALL">Todos os Supervisores</option>';
+  DATA.supervisors.forEach(s => {
+    selSup.innerHTML += `<option value="${s.cod_supervisor}">${s.cod_supervisor} — ${s.supervisor}</option>`;
+  });
+
+  document.getElementById('filter-month').addEventListener('change', e => { FILTERS.month = e.target.value; render(); });
+  document.getElementById('filter-sup').addEventListener('change', e => { FILTERS.supervisor = e.target.value; render(); });
+  document.getElementById('search').addEventListener('input', e => { FILTERS.q = e.target.value.trim().toLowerCase(); render(); });
+  document.getElementById('reset').addEventListener('click', () => {
+    FILTERS = { month: 'ALL', supervisor: 'ALL', q: '' };
+    document.getElementById('filter-month').value = 'ALL';
+    document.getElementById('filter-sup').value = 'ALL';
+    document.getElementById('search').value = '';
+    render();
+  });
+
+  document.getElementById('sup-month-select').addEventListener('change', e => {
+    if (CURRENT_SUPERVISOR) renderSupervisorExcel(CURRENT_SUPERVISOR, e.target.value, CURRENT_SORT_KEY);
+  });
+
+  document.getElementById('sup-sort-select').addEventListener('change', e => {
+    CURRENT_SORT_KEY = e.target.value;
+    if (CURRENT_SUPERVISOR) renderSupervisorExcel(CURRENT_SUPERVISOR, document.getElementById('sup-month-select').value, CURRENT_SORT_KEY);
+  });
+
+  document.getElementById('cli-month-select').addEventListener('change', e => {
+    if (CURRENT_VENDOR) renderClientesList(CURRENT_VENDOR, e.target.value, document.getElementById('cli-cat-select').value);
+  });
+
+  document.getElementById('cli-cat-select').addEventListener('change', e => {
+    if (CURRENT_VENDOR) renderClientesList(CURRENT_VENDOR, document.getElementById('cli-month-select').value, e.target.value);
+  });
+
+  document.getElementById('cli-sort-type').addEventListener('change', e => {
+    if (CURRENT_VENDOR) renderClientesList(CURRENT_VENDOR, document.getElementById('cli-month-select').value, document.getElementById('cli-cat-select').value);
+  });
+
+  document.getElementById('btn-export-pdf').addEventListener('click', () => { window.print(); });
+  document.getElementById('btn-export-xlsx').addEventListener('click', () => { exportToExcel(CURRENT_PROCESSED_CLIENTS, false); });
+  document.getElementById('btn-export-zero').addEventListener('click', () => { exportToExcel(CURRENT_PROCESSED_CLIENTS, true); });
+}
+
+function changeSort(key) {
+  CURRENT_SORT_KEY = key;
+  document.getElementById('sup-sort-select').value = key;
+  if (CURRENT_SUPERVISOR) renderSupervisorExcel(CURRENT_SUPERVISOR, document.getElementById('sup-month-select').value, CURRENT_SORT_KEY);
+}
+
+function render() {
+  const workdays = getWorkdaysInfo(FILTERS.month);
+  document.getElementById('workdays-info').textContent = `Dias Úteis Restantes: ${workdays.remainingWorkdays} de ${workdays.totalWorkdays}`;
+
+  const catGrid = document.getElementById('cats-grid');
+  catGrid.innerHTML = '';
+
+  let activeSup = FILTERS.supervisor !== 'ALL' ? DATA.supervisors.find(s => String(s.cod_supervisor) === String(FILTERS.supervisor)) : null;
+
+  DATA.categories.forEach(cat => {
+    const isNumOnly = (cat === 'DN' || cat === 'CM');
+    
+    let target = 0;
+    if (FILTERS.month === 'ALL') {
+      target = activeSup ? (activeSup.targets[cat] || 0) : (DATA.meta_macro[cat] || 0);
+    } else {
+      target = activeSup 
+        ? (activeSup.monthly_targets[FILTERS.month][cat] || 0) 
+        : (DATA.monthly_meta_macro[FILTERS.month][cat] || 0);
+    }
+
+    let real = 0;
+    const supsToSum = activeSup ? [activeSup] : DATA.supervisors;
+    supsToSum.forEach(s => {
+      s.members.forEach(m => {
+        if (FILTERS.month === 'ALL') {
+          real += Number(m.scores[cat] || 0);
+        } else {
+          real += Number((m.monthly_scores[FILTERS.month] && m.monthly_scores[FILTERS.month][cat]) || 0);
+        }
+      });
+    });
+
+    const gap = Math.max(0, target - real);
+    const dailyNeed = gap / workdays.remainingWorkdays;
+    const pct = target ? (real / target * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'cat-card';
+    card.innerHTML = `
+      <div class="cat-label">${cat}</div>
+      <div class="cat-val">${isNumOnly ? fmtNum.format(real) : fmtKG.format(real) + ' kg'}</div>
+      <div class="cat-sub">
+        <span>Meta: ${isNumOnly ? fmtNum.format(target) : fmtKG.format(target)}</span>
+        <span style="font-weight:800; color:var(--primary); font-size:12px;">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="progress-bar"><i style="width:${Math.min(100, pct)}%"></i></div>
+      <div class="gap-tag">GAP: ${isNumOnly ? fmtNum.format(gap) : fmtKG.format(gap) + ' kg'}</div>
+      <div class="daily-tag">Ritmo Diário: ${isNumOnly ? fmtNum.format(dailyNeed) : fmtKG.format(dailyNeed) + ' kg'} / dia útil</div>
+    `;
+    catGrid.appendChild(card);
+  });
+
+  const supGrid = document.getElementById('supervisors-grid');
+  supGrid.innerHTML = '';
+
+  DATA.supervisors.forEach(s => {
+    if (FILTERS.supervisor !== 'ALL' && String(s.cod_supervisor) !== String(FILTERS.supervisor)) return;
+
+    let supTargetKG = 0;
+    if (FILTERS.month === 'ALL') {
+      supTargetKG = s.targets["IOGURTES"] + s.targets["QUEIJOS"] + s.targets["SPREADS"] + s.targets["NUTRIÇÃO ESPORTIVA"];
+    } else {
+      const mt = s.monthly_targets[FILTERS.month] || {};
+      supTargetKG = (mt["IOGURTES"]||0) + (mt["QUEIJOS"]||0) + (mt["SPREADS"]||0) + (mt["NUTRIÇÃO ESPORTIVA"]||0);
+    }
+
+    let supRealKG = 0;
+    s.members.forEach(m => {
+      if (FILTERS.month === 'ALL') {
+        supRealKG += (m.scores["IOGURTES"] + m.scores["QUEIJOS"] + m.scores["SPREADS"] + m.scores["NUTRIÇÃO ESPORTIVA"]);
+      } else {
+        const ms = m.monthly_scores[FILTERS.month] || {};
+        supRealKG += ((ms["IOGURTES"]||0) + (ms["QUEIJOS"]||0) + (ms["SPREADS"]||0) + (ms["NUTRIÇÃO ESPORTIVA"]||0));
+      }
+    });
+
+    const supPct = supTargetKG ? (supRealKG / supTargetKG * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="avatar"><img src="${s.image}" onerror="this.src='placeholder_supervisor.png'"></div>
+      <div class="meta" style="flex:1;">
+        <h4>${s.supervisor}</h4>
+        <p>Meta: ${fmtKG.format(supTargetKG)} kg | Real: ${fmtKG.format(supRealKG)} kg</p>
+        <div class="progress-bar" style="margin-top:6px;"><i style="width:${Math.min(100, supPct)}%"></i></div>
+      </div>
+      <div style="text-align:right;">
+        <span style="font-weight:800; font-size:15px; color:${supPct>=100?'var(--success)':'var(--accent)'}">${supPct.toFixed(0)}%</span>
+      </div>
+    `;
+    card.addEventListener('click', () => openSupervisorPanel(s));
+    supGrid.appendChild(card);
+  });
+
+  renderFeedbackPanel(workdays);
+}
+
+function renderFeedbackPanel(workdays) {
+  const container = document.getElementById('feedback-grid');
+  container.innerHTML = '';
+
+  let totalVendors = 0;
+  DATA.supervisors.forEach(s => totalVendors += s.team_size);
+
+  let activeSup = FILTERS.supervisor !== 'ALL' ? DATA.supervisors.find(s => String(s.cod_supervisor) === String(FILTERS.supervisor)) : null;
+
+  DATA.categories.forEach(cat => {
+    const isNumOnly = (cat === 'DN' || cat === 'CM');
+    let target = 0;
+    if (FILTERS.month === 'ALL') {
+      target = activeSup ? (activeSup.targets[cat] || 0) : (DATA.meta_macro[cat] || 0);
+    } else {
+      target = activeSup 
+        ? (activeSup.monthly_targets[FILTERS.month][cat] || 0) 
+        : (DATA.monthly_meta_macro[FILTERS.month][cat] || 0);
+    }
+
+    let real = 0;
+    const supsToSum = activeSup ? [activeSup] : DATA.supervisors;
+    supsToSum.forEach(s => {
+      s.members.forEach(m => {
+        if (FILTERS.month === 'ALL') {
+          real += Number(m.scores[cat] || 0);
+        } else {
+          real += Number((m.monthly_scores[FILTERS.month] && m.monthly_scores[FILTERS.month][cat]) || 0);
+        }
+      });
+    });
+
+    const gap = Math.max(0, target - real);
+    const dailyPerVendor = (gap / workdays.remainingWorkdays) / (totalVendors || 1);
+
+    container.innerHTML += `
+      <div class="feedback-box">
+        <div class="muted">${cat} — Ritmo / Vendedor</div>
+        <div style="font-size:18px; font-weight:800; color:var(--warning); margin:4px 0;">
+          ${isNumOnly ? fmtNum.format(dailyPerVendor) + ' un' : fmtKG.format(dailyPerVendor) + ' KG'} / dia
+        </div>
+        <div style="font-size:11px; color:var(--danger); font-weight:700;">GAP Equipe: ${isNumOnly ? fmtNum.format(gap) : fmtKG.format(gap) + ' KG'}</div>
+        <div class="muted" style="font-size:10px; margin-top:2px;">Meta p/ zerar GAP nos ${workdays.remainingWorkdays} dias úteis restantes.</div>
+      </div>
+    `;
+  });
+}
+
+function openSupervisorPanel(s) {
+  CURRENT_SUPERVISOR = s;
+  document.getElementById('panel-sup-img').src = s.image;
+  document.getElementById('panel-sup-name').textContent = s.supervisor;
+  document.getElementById('panel-sup-sub').textContent = `Representatividade no Trimestre Prévio: ${(s.representatividade*100).toFixed(2)}% | ${s.team_size} Vendedores na Equipe`;
+  
+  document.getElementById('sup-month-select').value = FILTERS.month;
+  renderSupervisorExcel(s, FILTERS.month, CURRENT_SORT_KEY);
+  document.getElementById('sup-modal-back').classList.add('open');
+}
+
+function renderSupervisorExcel(s, monthKey, sortKey) {
+  const targetsGrid = document.getElementById('panel-sup-targets-grid');
+  targetsGrid.innerHTML = '';
+
+  DATA.categories.forEach(cat => {
+    const isNumOnly = (cat === 'DN' || cat === 'CM');
+    let target = monthKey === 'ALL' ? (s.targets[cat] || 0) : (s.monthly_targets[monthKey][cat] || 0);
+    
+    let real = 0;
+    s.members.forEach(m => {
+      if (monthKey === 'ALL') real += Number(m.scores[cat] || 0);
+      else real += Number((m.monthly_scores[monthKey] && m.monthly_scores[monthKey][cat]) || 0);
+    });
+
+    const gap = Math.max(0, target - real);
+    const pct = target ? (real / target * 100) : 0;
+
+    targetsGrid.innerHTML += `
+      <div style="background:var(--card); padding:10px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:10px; font-weight:700; color:var(--muted);">${cat}</div>
+        <div style="font-size:13px; font-weight:800; margin:2px 0;">${isNumOnly ? fmtNum.format(real) : fmtKG.format(real)}</div>
+        <div style="font-size:10px; color:var(--muted);">Meta: ${isNumOnly ? fmtNum.format(target) : fmtKG.format(target)} (${pct.toFixed(0)}%)</div>
+        <div style="font-size:10px; color:var(--danger); font-weight:700;">GAP: ${isNumOnly ? fmtNum.format(gap) : fmtKG.format(gap)}</div>
+      </div>
+    `;
+  });
+
+  const tbody = document.getElementById('panel-excel-tbody');
+  tbody.innerHTML = '';
+
+  let members = [...s.members];
+
+  if (sortKey === 'ALFABETICA') {
+    members.sort((a, b) => a.vendedor.localeCompare(b.vendedor));
+  } else if (sortKey === 'TOTAL') {
+    members.sort((a, b) => {
+      let scA = monthKey === 'ALL' ? a.scores : (a.monthly_scores[monthKey] || {});
+      let scB = monthKey === 'ALL' ? b.scores : (b.monthly_scores[monthKey] || {});
+      let totA = (scA["IOGURTES"]||0) + (scA["QUEIJOS"]||0) + (scA["SPREADS"]||0) + (scA["NUTRIÇÃO ESPORTIVA"]||0);
+      let totB = (scB["IOGURTES"]||0) + (scB["QUEIJOS"]||0) + (scB["SPREADS"]||0) + (scB["NUTRIÇÃO ESPORTIVA"]||0);
+      return totB - totA;
+    });
+  } else {
+    members.sort((a, b) => {
+      let valA = monthKey === 'ALL' ? (a.scores[sortKey]||0) : ((a.monthly_scores[monthKey]&&a.monthly_scores[monthKey][sortKey])||0);
+      let valB = monthKey === 'ALL' ? (b.scores[sortKey]||0) : ((b.monthly_scores[monthKey]&&b.monthly_scores[monthKey][sortKey])||0);
+      return valB - valA;
+    });
+  }
+
+  members.forEach(m => {
+    let sc = monthKey === 'ALL' ? m.scores : (m.monthly_scores[monthKey] || {});
+    let totKG = (sc["IOGURTES"]||0) + (sc["QUEIJOS"]||0) + (sc["SPREADS"]||0) + (sc["NUTRIÇÃO ESPORTIVA"]||0);
+    const imgSrc = resolveVendorImage(m);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="display:flex; align-items:center; gap:8px; font-weight:700;">
+        <img src="${imgSrc}" style="width:28px; height:28px; border-radius:6px; object-fit:cover;" onerror="this.onerror=null; this.src='placeholder_vendedor.png';">
+        ${m.vendedor}
+      </td>
+      <td style="${sortKey==='IOGURTES'?'color:var(--primary); font-weight:800;':''}">${fmtKG.format(sc["IOGURTES"]||0)}</td>
+      <td style="${sortKey==='QUEIJOS'?'color:var(--primary); font-weight:800;':''}">${fmtKG.format(sc["QUEIJOS"]||0)}</td>
+      <td style="${sortKey==='SPREADS'?'color:var(--primary); font-weight:800;':''}">${fmtKG.format(sc["SPREADS"]||0)}</td>
+      <td style="${sortKey==='NUTRIÇÃO ESPORTIVA'?'color:var(--primary); font-weight:800;':''}">${fmtKG.format(sc["NUTRIÇÃO ESPORTIVA"]||0)}</td>
+      <td style="${sortKey==='DN'?'color:var(--primary); font-weight:800;':''}">${fmtNum.format(sc["DN"]||0)}</td>
+      <td style="${sortKey==='CM'?'color:var(--primary); font-weight:800;':''}">${fmtNum.format(sc["CM"]||0)}</td>
+      <td style="text-align:right; font-weight:800; color:var(--primary);">${fmtKG.format(totKG)}</td>
+    `;
+    tr.addEventListener('click', () => openClientesModal(m));
+    tbody.appendChild(tr);
+  });
+}
+
+function openClientesModal(m) {
+  CURRENT_VENDOR = m;
+  document.getElementById('cli-modal-title').textContent = `Clientes — ${m.vendedor}`;
+  document.getElementById('cli-month-select').value = FILTERS.month;
+  document.getElementById('cli-cat-select').value = 'ALL';
+  renderClientesList(m, FILTERS.month, 'ALL');
+  document.getElementById('cli-modal-back').classList.add('open');
+}
+
+// FUNÇÃO RENDERIZADORA DE CLIENTES UNIFICADA E AGRUPADA
+function renderClientesList(m, monthKey, catKey) {
+  const tbody = document.getElementById('cli-tbody');
+  tbody.innerHTML = '';
+
+  let rawCli = m.clientes.filter(c => monthKey === 'ALL' || c.Mes === monthKey);
+  const isUnits = (catKey === 'DN' || catKey === 'CM');
+  document.getElementById('th-cli-val-title').textContent = catKey === 'ALL' ? 'TOTAL (KG)' : `${catKey} ${isUnits ? '(un)' : '(KG)'}`;
+
+  // 1. AGRUPAR POR CLIENTE ÚNICO NO PERÍODO (ACUMULA VOLUMES DE JULHO, AGOSTO E SETEMBRO)
+  let aggregatedMap = {};
+  rawCli.forEach(c => {
+    let key = String(c.CodParceiro || c.Razao || '').trim();
+    let val = (catKey !== 'ALL') ? (c[catKey] || 0) : (c.Total || 0);
+    val = typeof val === 'number' ? val : (parseFloat(String(val).replace(',', '.')) || 0);
+
+    if (!aggregatedMap[key]) {
+      aggregatedMap[key] = {
+        CodParceiro: c.CodParceiro,
+        'CPF/CNPJ': c['CPF/CNPJ'],
+        Razao: c.Razao,
+        Cidade: c.Cidade,
+        Mes: monthKey === 'ALL' ? 'Trimestre' : c.Mes,
+        DisplayVal: 0
+      };
+    }
+    aggregatedMap[key].DisplayVal += val;
+  });
+
+  let filteredCli = Object.values(aggregatedMap);
+
+  // 2. ORDENAÇÃO CONFORME SELEÇÃO DA TELA (CIDADE OU RANKING DE VOLUME)
+  const sortOption = document.getElementById('cli-sort-type') ? document.getElementById('cli-sort-type').value : 'CIDADE';
+
+  filteredCli.sort((a, b) => {
+    if (sortOption === 'CIDADE') {
+      // 1º Cidade (A-Z) -> 2º Volume (Maior para Menor) -> 3º Razão Social (A-Z)
+      const cityComp = String(a.Cidade || '').localeCompare(String(b.Cidade || ''), 'pt-BR', { sensitivity: 'base' });
+      if (cityComp !== 0) return cityComp;
+      const valDiff = b.DisplayVal - a.DisplayVal;
+      if (Math.abs(valDiff) > 0.0001) return valDiff;
+      return String(a.Razao || '').localeCompare(String(b.Razao || ''), 'pt-BR', { sensitivity: 'base' });
+    } else {
+      // 1º Volume (Maior para Menor) -> 2º Cidade (A-Z) -> 3º Razão Social (A-Z)
+      const valDiff = b.DisplayVal - a.DisplayVal;
+      if (Math.abs(valDiff) > 0.0001) return valDiff;
+      const cityComp = String(a.Cidade || '').localeCompare(String(b.Cidade || ''), 'pt-BR', { sensitivity: 'base' });
+      if (cityComp !== 0) return cityComp;
+      return String(a.Razao || '').localeCompare(String(b.Razao || ''), 'pt-BR', { sensitivity: 'base' });
+    }
+  });
+
+  CURRENT_PROCESSED_CLIENTS = filteredCli;
+
+  // 3. CONTADORES INFORMATIVOS
+  const totalCount = filteredCli.length;
+  const zeroCount = filteredCli.filter(c => c.DisplayVal <= 0).length;
+  const activeCount = totalCount - zeroCount;
+
+  document.getElementById('stat-cli-total').textContent = totalCount;
+  document.getElementById('stat-cli-active').textContent = activeCount;
+  document.getElementById('stat-cli-zero').textContent = zeroCount;
+
+  document.getElementById('cli-modal-sub').textContent = `${totalCount} parceiros únicos na carteira.`;
+
+  // 4. RENDERIZAÇÃO DA TABELA
+  filteredCli.forEach(c => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${c.CodParceiro || '-'}</td>
+        <td>${c['CPF/CNPJ'] || '-'}</td>
+        <td>${c.Razao || '-'}</td>
+        <td><strong>${c.Cidade || '-'}</strong></td>
+        <td><span style="text-transform:capitalize;">${c.Mes}</span></td>
+        <td style="text-align:right; font-weight:700; color:${c.DisplayVal > 0 ? 'var(--accent)' : 'var(--muted)'};">
+          ${isUnits ? fmtNum.format(c.DisplayVal) : fmtKG.format(c.DisplayVal)}
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function exportToExcel(clientsList, onlyZeros) {
+  if (!clientsList || clientsList.length === 0) return;
+
+  let listToExport = clientsList;
+  if (onlyZeros) {
+    listToExport = clientsList.filter(c => c.DisplayVal === 0);
+  }
+
+  const vendorName = CURRENT_VENDOR ? CURRENT_VENDOR.vendedor : 'Vendedor';
+  const selectedCat = document.getElementById('cli-cat-select').value;
+  const selectedMonth = document.getElementById('cli-month-select').value;
+
+  const excelData = listToExport.map(c => ({
+    "PARCEIRO": c.CodParceiro || '',
+    "CPF/CNPJ": c['CPF/CNPJ'] || '',
+    "RAZÃO SOCIAL": c.Razao || '',
+    "CIDADE": c.Cidade || '',
+    "MÊS": c.Mes || '',
+    "VALOR": c.DisplayVal
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+
+  const fileName = `Clientes_${vendorName}_${selectedCat}_${selectedMonth}${onlyZeros ? '_ZERADOS' : ''}.xlsx`;
+  XLSX.writeFile(workbook, fileName);
+}
+
+document.getElementById('close-sup-panel').addEventListener('click', () => { document.getElementById('sup-modal-back').classList.remove('open'); });
+document.getElementById('close-cli-modal').addEventListener('click', () => { document.getElementById('cli-modal-back').classList.remove('open'); });
+
+loadData();
+</script>
+</body>
+</html>
